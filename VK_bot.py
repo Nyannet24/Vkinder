@@ -27,7 +27,7 @@ class BotInterface:
                 elif event.text.lower() == 'да':
                     self.message_send(event.user_id, 'Cейчас посмотрим, чем я могу помочь.')
                 elif event.text.lower() == 'поиск':
-                    self.message_send(event.user_id, tools.get_profile_info(243617277))
+                    passgi
                 elif event.text.lower() == 'далее':
                     pass
                 else:
@@ -37,5 +37,5 @@ class BotInterface:
 if __name__ == '__main__':
    bot = BotInterface(comunity_token)
    bot.handler()
-   media = '{photo_243617277_456242624}'
-   bot.message_send(243617277, 'фото', attachment=media)
+   #media = '{photo_243617277_456242624}'
+   #bot.message_send(243617277, 'фото', attachment=media)
