@@ -19,8 +19,8 @@ db = SQL() # Для взаимодействия с классом базы да
 KB = Keyboards() # Для взаимодействия с классом клавиатуры
 
 # Инициализация бота
-token = 'Токен_Группы'
-group_id = 'ID_Группы'
+token = 'vk1.a.VDyct2tV-1-tEUP6ukYLwW0cLntPHj3RJp4mLpSgFrOm7MBmhTe26Hg3CADNUn9VgU2YMUf883BIeXYgj4245TucF9LYBbVDzPLsIYe6X2yfOm2RG55LQDfECjlBu5HiiS_4D42VdgNZ-eFsO5Ff0UhGlg9vuvFosykG1_uCP4FnVPQZwRmrDyIIebA5y-ynoXywt9lihThMLlEsCh55hA'
+group_id = 'vk1.a.NKGNxBoXeTQBx19u0P1qKhUVbn2-wByN2UmNUuyqOvVWo2kImUrxKKketkDObphcD3zRW-pQaOx7GTjApjVG9BK6nyVtmmuOeoTgb9hTEzVVwHVet2disAoQS48H4j7QBDT4YN-vy-ytRjRcC2o1NvdVuhFsFEjECRZYAcbSGQi0rJjJPj1f5pi1RyhmDay-uzsRy7RqcddoIlq2Vm3gsQ'
 vk_session = vk_api.VkApi(token=token)
 longpoll = VkBotLongPoll(vk_session, group_id)
 vk = vk_session.get_api()
