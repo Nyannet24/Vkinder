@@ -1,8 +1,7 @@
-#import sqlite3 # Тестировалось на БД SQLite3
 import psycopg2
-from math import radians, cos, sin, asin, sqrt
 from datetime import date
-
+#import sqlite3 # Тестировалось на БД SQLite3
+#from math import radians, cos, sin, asin, sqrt
 
 class SQL:
 
@@ -26,22 +25,20 @@ class SQL:
     def SetDB(self): 
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.executescript("""CREATE TABLE IF NOT EXISTS Users (
+            cursor.execute("""CREATE TABLE IF NOT EXISTS Users (
                                         ID INTEGER PRIMARY KEY,
                                         Sex INTEGER,
                                         Age INTEGER,
-                                        Latitude  TEXT,
-                                        Longitude TEXT,
-                                        City TEXT,
-                                        ActiveProfile BOOLEAN,
-                                        Pair INTEGER);
+                                        City INTEGER,
+                                        Relation TEXT,
+                                        Items TEXT,
+                                        Offset INTEGER,
+                                        Max INTEGER);""")
                                     
-                                    CREATE TABLE IF NOT EXISTS Match (
-                                        ID_me INTEGER,
+            cursor.execute("""CREATE TABLE IF NOT EXISTS Match (
                                         ID_pair INTEGER,
                                         Result BOOLEAN,
-                                        Date TEXT);
-                                 """)
+                                        Date TEXT);""")
         #print("БД создана")
 
 ###### Работа с пользователем
@@ -50,26 +47,25 @@ class SQL:
     def CreateUser(self, User): 
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"INSERT OR IGNORE INTO Users (ID, Sex, Age, Latitude, Longitude, City, ActiveProfile) VALUES ('{User[0]}', '{User[1]}', '{User[2]}', '{User[3]}', '{User[4]}', '{User[5]}', '1');")
+            cursor.execute(f"INSERT OR IGNORE INTO Users (ID, Sex, Age, City, Relation, Offset) VALUES ('{User[0]}', '{User[1]}', '{User[2]}', '{User[3]}', '{User[4]}', 0);")
             
     # Обновление пользователя
-    def UpdateUser(self, ID, Sex, Age, Latitude, Longitude, City): 
+    def UpdateUser(self, User): 
         with self.connection:
             cursor = self.connection.cursor()
             cursor.execute(f"""UPDATE Users
-                  SET Sex = {Sex},
-                      Age = {Age},
-                      Latitude = '{Latitude}',
-                      Longitude = '{Longitude}',
-                      City = '{City}'
-                  WHERE ID = {ID}
+                  SET Sex = '{User[1]}',
+                      Age = '{User[2]}',
+                      City = '{User[3]}',
+                      Relation = '{User[4]}'
+                  WHERE ID = '{User[0]}'
                   ;""")
 
     # Проверка существования пользователя в Базе Данных
     def CheckUser(self, User): 
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute("SELECT EXISTS(SELECT 1 FROM Users WHERE ID = ?)", (User,))
+            cursor.execute(f"SELECT EXISTS(SELECT 1 FROM Users WHERE ID = {User})")
             result = cursor.fetchone()[0]
             return bool(result)
 
@@ -77,35 +73,55 @@ class SQL:
     def GetUser(self, ID):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"SELECT * FROM Users WHERE ID = {ID}")
+            cursor.execute(f"SELECT Sex, Age, City FROM Users WHERE ID = {ID}")
             result = cursor.fetchone()
             return result
 
-    # Установка активности профиля
-    def SetUserActive(self, ID, Active): 
+    # Установка смещения
+    def SetUserOffset(self, ID, Offset): 
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute("UPDATE Users SET ActiveProfile = ? WHERE ID = ?", (Active, ID))
+            cursor.execute(f"UPDATE Users SET Offset = {Offset} WHERE ID = {ID}")
 
-    # Получение активности анкеты
-    def GetUserActive(self, ID):
+    # Автоинкрементирование смещения
+    def AddUserOffset(self, ID): 
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"SELECT ActiveProfile FROM Users WHERE ID = {ID}")
+            cursor.execute(f"UPDATE Users SET Offset = Offset + 1 WHERE ID = {ID}")
+
+    # Получение смещения
+    def GetUserOffset(self, ID):
+        with self.connection:
+            cursor = self.connection.cursor()
+            cursor.execute(f"SELECT Offset FROM Users WHERE ID = {ID}")
+            result = cursor.fetchone()[0]
+            return result
+
+    # Установка количества найденных подходящих анкет
+    def SetUserMax(self, ID, Max):
+        with self.connection:
+            cursor = self.connection.cursor()
+            cursor.execute(f"UPDATE Users SET Max = {Max} WHERE ID = {ID}")
+
+    # Получение количества найденных подходящих анкет
+    def GetUserMax(self, ID):
+        with self.connection:
+            cursor = self.connection.cursor()
+            cursor.execute(f"SELECT Max FROM Users WHERE ID = {ID}")
             result = cursor.fetchone()[0]
             return result
 
     # Установка пары в профиль
-    def SetUserPair(self, ID, Pair):
+    def SetUserItems(self, ID, Items):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"UPDATE Users SET Pair = {Pair} WHERE ID = {ID}")
+            cursor.execute(f"UPDATE Users SET Items = {Items} WHERE ID = {ID}")
 
     # Получение пары из профиля
-    def GetUserPair(self, ID):
+    def GetUserItems(self, ID):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"SELECT Pair FROM Users WHERE ID = {ID}")
+            cursor.execute(f"SELECT Items FROM Users WHERE ID = {ID}")
             result = cursor.fetchone()[0]
             return result
 
@@ -124,85 +140,24 @@ class SQL:
             return result
 
 
-###### Работа с табличей мэтчей
+###### Работа с таблицей Match
     
-    # Получение записи мэтча
-    def SetMatchHistory(self, MyID, PairID, Result):
+    # Создание записи в Match
+    def SetMatchHistory(self, PairID, Result):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"INSERT INTO Match (ID_me, ID_pair, Result, Date) VALUES ('{MyID}', '{PairID}', {Result}, '{date.today()}');")
-
-    # Удаление записи из мэтча
-    def DeleteMatchHistory(self, Days):
+            cursor.execute(f"INSERT INTO Match (ID_pair, Result, Date) VALUES ('{PairID}', {Result}, '{date.today()}');")
+    
+    # Получение записи из Match
+    def GetCountMatchFromPair(self, ID_pair):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"DELETE FROM Match WHERE DATE(Date) <= DATE('now', '-{Days} days');")
+            cursor.execute(f"SELECT COUNT(*) FROM Match WHERE ID_pair = {ID_pair};")
+            result = cursor.fetchone()[0]
+            return result == 0
 
-
-###### Работа с поиском анкет
-
-    # Главный запрос на поиск подходящей анкеты
-    def SearchPair(self, MyID, Sex, Age):
-        # 1 Указывает на активность профиля. 3 указывает на допустимую разницу между возрастами.
-        # В сравнении 20 является 20 км. Это означает, что пользователю будут отображаться
-        # профили в пределах 20 км. Данный запрос в будущем можно будет модернизировать и
-        # каждому пользователю позволить выбирать свой радиус поиска анкет и разницу возраста.
-        SearchSex = 1 if Sex == 2 else 2
+    # Удаление всех записей из Match
+    def DeleteMatchHistory(self):
         with self.connection:
             cursor = self.connection.cursor()
-            cursor.execute(f"""SELECT ID
-                                FROM Users
-                                WHERE ActiveProfile = 1
-                                    AND Sex = {SearchSex}
-                                    AND ABS(Age - {Age}) <= 3
-                                    AND ID NOT IN (
-                                        SELECT ID_pair
-                                        FROM Match
-                                        WHERE ID_me = {MyID}
-                                    )
-                                    AND (
-                                        6371 * 2 * ASIN(
-                                            SQRT(
-                                                POWER(SIN(RADIANS((SELECT Latitude FROM Users WHERE ID = {MyID})) - CAST(Latitude AS REAL)) / 2, 2) +
-                                                COS(RADIANS(CAST(Latitude AS REAL))) * COS(RADIANS((SELECT Latitude FROM Users WHERE ID = {MyID}))) *
-                                                POWER(SIN(RADIANS((SELECT Longitude FROM Users WHERE ID = {MyID})) - CAST(Longitude AS REAL)) / 2, 2)
-                                            )
-                                        )
-                                    ) <= 20
-                                LIMIT 1
-                                ;""")
-            
-                            
-            result = cursor.fetchone()
-            return result
-
-    # Вспомогательная функция для поиска дистанции
-    def haversine_distance(self, lat1, lon1, lat2, lon2): 
-        # Преобразование координат из градусов в радианы
-        lat1_rad, lon1_rad = radians(float(lat1)), radians(float(lon1))
-        lat2_rad, lon2_rad = radians(float(lat2)), radians(float(lon2))
-        # Разница координат
-        dlon = lon2_rad - lon1_rad
-        dlat = lat2_rad - lat1_rad
-        # Формула гаверсинусов
-        a = sin(dlat/2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon/2)**2
-        c = 2 * asin(sqrt(a))
-        # Радиус Земли в километрах
-        radius = 6371
-        # Вычисляем расстояние и возвращаем
-        return c * radius
-
-    # Функция для поиска дистанции
-    def SearchDistance(self, MyID, PairID):
-        with self.connection:
-            cursor = self.connection.cursor()
-            # Получение координат первого пользователя
-            cursor.execute(f"SELECT Latitude, Longitude FROM Users WHERE ID = {MyID}")
-            result1 = cursor.fetchone()
-            lat1, lon1 = result1
-            # Получение координат второго пользователя
-            cursor.execute(f"SELECT Latitude, Longitude FROM Users WHERE ID = {PairID}")
-            result2 = cursor.fetchone()
-            lat2, lon2 = result2
-            # Вычисление расстояния
-            return self.haversine_distance(lat1, lon1, lat2, lon2)
+            cursor.execute(f"DELETE FROM Match;")
